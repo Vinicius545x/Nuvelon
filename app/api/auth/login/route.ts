@@ -2,31 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
 import dbConnect from '@/lib/database'
 import User from '@/models/User'
+import { withValidation, getValidatedData } from '@/lib/validation-middleware'
+import { loginSchema } from '@/lib/validations/auth'
+import { loginRateLimiter } from '@/lib/rate-limiter'
+import { securityLogger } from '@/lib/security-logger'
 
-// Tipos
-interface LoginRequest {
-  username: string
-  password: string
-}
-
-export async function POST(request: NextRequest) {
+const loginHandler = async (request: NextRequest) => {
   try {
     await dbConnect()
     
-    const body: LoginRequest = await request.json()
-    const { username, password } = body
-
-    // Validação básica
-    if (!username || !password) {
-      return NextResponse.json(
-        { error: 'Username e password são obrigatórios' },
-        { status: 400 }
-      )
-    }
+    const { username, password } = getValidatedData(request)
 
     // Buscar usuário no banco
     const user = await User.findOne({ username, isActive: true })
     if (!user) {
+      securityLogger.logLoginAttempt(request, username, false, 'User not found')
       return NextResponse.json(
         { error: 'Credenciais inválidas' },
         { status: 401 }
@@ -36,11 +26,15 @@ export async function POST(request: NextRequest) {
     // Verificar senha
     const isValidPassword = await user.comparePassword(password)
     if (!isValidPassword) {
+      securityLogger.logLoginAttempt(request, username, false, 'Invalid password')
       return NextResponse.json(
         { error: 'Credenciais inválidas' },
         { status: 401 }
       )
     }
+
+    // Log de login bem-sucedido
+    securityLogger.logLoginAttempt(request, username, true)
 
     // Atualizar último login
     user.lastLogin = new Date()
@@ -107,4 +101,6 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-} 
+}
+
+export const POST = loginRateLimiter(withValidation(loginSchema)(loginHandler)) 

@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { LoadingIndicator } from "@/components/loading-indicator"
 
 interface Client {
   id: string
@@ -14,6 +15,7 @@ interface Client {
 
 interface AuthContextType {
   isAuthenticated: boolean
+  isLoading: boolean
   login: (username: string, password: string) => Promise<boolean>
   logout: () => Promise<void>
   clients: Client[]
@@ -66,11 +68,27 @@ const MOCK_CLIENTS: Client[] = [
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [clients, setClients] = useState<Client[]>(MOCK_CLIENTS)
+  const [isLoading, setIsLoading] = useState(true)
 
+  // Carregar dados do localStorage na inicialização
   useEffect(() => {
-    const auth = localStorage.getItem("nuvelon-auth")
-    if (auth === "true") {
-      setIsAuthenticated(true)
+    try {
+      // Carregar estado de autenticação
+      const auth = localStorage.getItem("nuvelon-auth")
+      if (auth === "true") {
+        setIsAuthenticated(true)
+      }
+
+      // Carregar clientes salvos
+      const savedClients = localStorage.getItem("nuvelon-clients")
+      if (savedClients) {
+        const parsedClients = JSON.parse(savedClients)
+        setClients(parsedClients)
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados do localStorage:', error)
+    } finally {
+      setIsLoading(false)
     }
   }, [])
 
@@ -111,20 +129,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Função para salvar clientes no localStorage
+  const saveClientsToStorage = (clientsData: Client[]) => {
+    try {
+      localStorage.setItem("nuvelon-clients", JSON.stringify(clientsData))
+    } catch (error) {
+      console.error('Erro ao salvar clientes no localStorage:', error)
+    }
+  }
+
   const addClient = (clientData: Omit<Client, "id">) => {
     const newClient: Client = {
       ...clientData,
       id: Date.now().toString(),
     }
-    setClients((prev) => [...prev, newClient])
+    setClients((prev) => {
+      const updatedClients = [...prev, newClient]
+      saveClientsToStorage(updatedClients)
+      return updatedClients
+    })
   }
 
   const updateClient = (id: string, updates: Partial<Client>) => {
-    setClients((prev) => prev.map((client) => (client.id === id ? { ...client, ...updates } : client)))
+    setClients((prev) => {
+      const updatedClients = prev.map((client) => 
+        client.id === id ? { ...client, ...updates } : client
+      )
+      saveClientsToStorage(updatedClients)
+      return updatedClients
+    })
   }
 
   const deleteClient = (id: string) => {
-    setClients((prev) => prev.filter((client) => client.id !== id))
+    setClients((prev) => {
+      const updatedClients = prev.filter((client) => client.id !== id)
+      saveClientsToStorage(updatedClients)
+      return updatedClients
+    })
+  }
+
+  // Mostrar loading enquanto carrega dados iniciais
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <LoadingIndicator message="Carregando dados..." size="lg" />
+      </div>
+    )
   }
 
   return (
@@ -137,6 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         addClient,
         updateClient,
         deleteClient,
+        isLoading,
       }}
     >
       {children}

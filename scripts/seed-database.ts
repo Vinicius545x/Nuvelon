@@ -3,6 +3,12 @@ import User from '../models/User'
 import Plan from '../models/Plan'
 import Client from '../models/Client'
 
+function calcRenewalDate(purchaseDate: Date, durationMonths: number) {
+  const renewal = new Date(purchaseDate)
+  renewal.setMonth(renewal.getMonth() + durationMonths)
+  return renewal
+}
+
 async function seedDatabase() {
   try {
     await dbConnect()
@@ -18,7 +24,7 @@ async function seedDatabase() {
     const adminUser = await User.create({
       username: 'nuvelon',
       email: 'admin@nuvelon.com',
-      password: '1234', // Será hasheada automaticamente
+      password: '123456', // Será hasheada automaticamente
       role: 'admin',
       isActive: true
     })
@@ -109,14 +115,18 @@ async function seedDatabase() {
     ])
     console.log(`${plans.length} planos criados`)
 
+    // Helper para buscar plano por nome
+    const getPlan = (name: string) => plans.find(p => p.name === name)
+
     // Criar clientes de exemplo
     const clients = await Client.create([
       {
         name: 'João Silva',
         email: 'joao.silva@email.com',
         phone: '+5511999999999',
-        plan: plans[1]._id, // Mensal Premium
+        plan: getPlan('Mensal Premium')._id,
         purchaseDate: new Date('2024-11-01'),
+        renewalDate: calcRenewalDate(new Date('2024-11-01'), getPlan('Mensal Premium').durationMonths),
         status: 'Ativo',
         notes: 'Cliente VIP, sempre paga em dia',
         address: {
@@ -129,15 +139,16 @@ async function seedDatabase() {
         paymentInfo: {
           method: 'Cartão de Crédito',
           lastPayment: new Date('2024-11-01'),
-          nextPayment: new Date('2024-12-01')
+          nextPayment: calcRenewalDate(new Date('2024-11-01'), getPlan('Mensal Premium').durationMonths)
         }
       },
       {
         name: 'Maria Santos',
         email: 'maria.santos@email.com',
         phone: '+5511888888888',
-        plan: plans[2]._id, // Trimestral Básico
+        plan: getPlan('Trimestral Básico')._id,
         purchaseDate: new Date('2024-09-15'),
+        renewalDate: calcRenewalDate(new Date('2024-09-15'), getPlan('Trimestral Básico').durationMonths),
         status: 'Precisa Renovar',
         notes: 'Primeira compra, cliente novo',
         address: {
@@ -152,8 +163,9 @@ async function seedDatabase() {
         name: 'Pedro Costa',
         email: 'pedro.costa@email.com',
         phone: '+5511777777777',
-        plan: plans[5]._id, // Anual Pro
+        plan: getPlan('Anual Pro')._id,
         purchaseDate: new Date('2024-01-10'),
+        renewalDate: calcRenewalDate(new Date('2024-01-10'), getPlan('Anual Pro').durationMonths),
         status: 'Ativo',
         notes: 'Cliente fidelizado há 2 anos',
         address: {
@@ -166,15 +178,16 @@ async function seedDatabase() {
         paymentInfo: {
           method: 'PIX',
           lastPayment: new Date('2024-01-10'),
-          nextPayment: new Date('2025-01-10')
+          nextPayment: calcRenewalDate(new Date('2024-01-10'), getPlan('Anual Pro').durationMonths)
         }
       },
       {
         name: 'Ana Oliveira',
         email: 'ana.oliveira@email.com',
         phone: '+5511666666666',
-        plan: plans[0]._id, // Mensal Básico
+        plan: getPlan('Mensal Básico')._id,
         purchaseDate: new Date('2024-10-01'),
+        renewalDate: calcRenewalDate(new Date('2024-10-01'), getPlan('Mensal Básico').durationMonths),
         status: 'Precisa Renovar',
         notes: 'Suporte técnico necessário',
         address: {
@@ -189,8 +202,9 @@ async function seedDatabase() {
         name: 'Carlos Ferreira',
         email: 'carlos.ferreira@email.com',
         phone: '+5511555555555',
-        plan: plans[3]._id, // Trimestral Premium
+        plan: getPlan('Trimestral Premium')._id,
         purchaseDate: new Date('2024-08-01'),
+        renewalDate: calcRenewalDate(new Date('2024-08-01'), getPlan('Trimestral Premium').durationMonths),
         status: 'Ativo',
         notes: 'Cliente corporativo',
         address: {
@@ -203,7 +217,7 @@ async function seedDatabase() {
         paymentInfo: {
           method: 'Boleto Bancário',
           lastPayment: new Date('2024-08-01'),
-          nextPayment: new Date('2024-11-01')
+          nextPayment: calcRenewalDate(new Date('2024-08-01'), getPlan('Trimestral Premium').durationMonths)
         }
       }
     ])

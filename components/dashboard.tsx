@@ -8,12 +8,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { ClientsList } from "@/components/clients-list"
 import { ClientForm } from "@/components/client-form"
-import { Users, CreditCard, AlertTriangle, DollarSign, Plus, Search, LogOut, Gamepad2 } from "lucide-react"
+import { SettingsManager } from "@/components/settings-manager"
+import { JobsMonitor } from "@/components/automation/jobs-monitor"
+import { useNavigationState } from "@/hooks/use-session-storage"
+import { Users, CreditCard, AlertTriangle, DollarSign, Plus, Search, LogOut, Gamepad2, Settings, Cog } from "lucide-react"
 
 export function Dashboard() {
   const { clients, logout } = useAuth()
-  const [currentView, setCurrentView] = useState<"dashboard" | "clients" | "add-client">("dashboard")
-  const [searchTerm, setSearchTerm] = useState("")
+  const { currentView, setCurrentView, searchTerm, setSearchTerm } = useNavigationState()
 
   const activeClients = clients.filter((c) => c.status === "Ativo").length
   const renewalPending = clients.filter((c) => c.status === "Precisa Renovar").length
@@ -57,6 +59,22 @@ export function Dashboard() {
             className={currentView === "clients" ? "bg-purple-600 hover:bg-purple-700" : ""}
           >
             Clientes
+          </Button>
+          <Button
+            variant={currentView === "automation" ? "default" : "ghost"}
+            onClick={() => setCurrentView("automation")}
+            className={currentView === "automation" ? "bg-purple-600 hover:bg-purple-700" : ""}
+          >
+            <Cog className="h-4 w-4 mr-2" />
+            Automação
+          </Button>
+          <Button
+            variant={currentView === "settings" ? "default" : "ghost"}
+            onClick={() => setCurrentView("settings")}
+            className={currentView === "settings" ? "bg-purple-600 hover:bg-purple-700" : ""}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Configurações
           </Button>
         </div>
       </nav>
@@ -193,6 +211,21 @@ export function Dashboard() {
             </div>
 
             <ClientForm onSuccess={() => setCurrentView("clients")} />
+          </div>
+        )}
+
+        {currentView === "settings" && (
+          <div className="space-y-6">
+            <SettingsManager />
+          </div>
+        )}
+
+        {currentView === "automation" && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Monitor de Automação</h2>
+            </div>
+            <JobsMonitor />
           </div>
         )}
       </main>

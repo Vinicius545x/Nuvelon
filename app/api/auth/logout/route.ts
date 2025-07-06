@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { securityLogger } from '@/lib/security-logger'
 
 export async function POST(request: NextRequest) {
   try {
+    // Log de logout
+    securityLogger.logLogout(request)
+
     // Criar resposta de sucesso
     const response = NextResponse.json({
       success: true,

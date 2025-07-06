@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,10 +12,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon } from "lucide-react"
+import { CalendarIcon, Save } from "lucide-react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
+import { usePersistentForm } from "@/hooks/use-persistent-form"
 
 interface Client {
   id: string
@@ -44,16 +45,48 @@ const PLANS = [
 export function ClientForm({ client, onSuccess }: ClientFormProps) {
   const { addClient, updateClient } = useAuth()
   const { toast } = useToast()
-  const [formData, setFormData] = useState({
+  
+  // Usar formulário persistente
+  const formKey = client ? `client-form-${client.id}` : 'client-form-new'
+  const initialData = {
     name: client?.name || "",
     plan: client?.plan || "",
     purchaseDate: client?.purchaseDate || "",
     status: client?.status || ("Ativo" as const),
     notes: client?.notes || "",
+  }
+  
+  const {
+    formData,
+    updateField,
+    updateFields,
+    resetForm,
+    clearForm,
+    isLoaded,
+    saveToStorage
+  } = usePersistentForm(formKey, initialData, {
+    autoSave: true,
+    autoSaveDelay: 500,
+    clearOnSubmit: true
   })
+  
   const [purchaseDate, setPurchaseDate] = useState<Date | undefined>(
     client?.purchaseDate ? new Date(client.purchaseDate) : undefined,
   )
+  
+  // Sincronizar data de compra com o formulário persistente
+  useEffect(() => {
+    if (purchaseDate) {
+      updateField('purchaseDate', purchaseDate.toISOString().split('T')[0])
+    }
+  }, [purchaseDate, updateField])
+  
+  // Carregar data de compra do formulário persistente
+  useEffect(() => {
+    if (isLoaded && formData.purchaseDate) {
+      setPurchaseDate(new Date(formData.purchaseDate))
+    }
+  }, [isLoaded, formData.purchaseDate])
 
   const calculateRenewalDate = (purchaseDate: Date, plan: string): string => {
     const selectedPlan = PLANS.find((p) => p.value === plan)
@@ -99,7 +132,17 @@ export function ClientForm({ client, onSuccess }: ClientFormProps) {
       })
     }
 
+    // Limpar formulário após sucesso
+    clearForm()
     onSuccess()
+  }
+  
+  const handleSaveDraft = () => {
+    saveToStorage(formData)
+    toast({
+      title: "Rascunho Salvo",
+      description: "Seus dados foram salvos automaticamente",
+    })
   }
 
   return (
@@ -115,7 +158,7 @@ export function ClientForm({ client, onSuccess }: ClientFormProps) {
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                onChange={(e) => updateField('name', e.target.value)}
                 placeholder="Digite o nome completo"
                 required
               />
@@ -125,7 +168,7 @@ export function ClientForm({ client, onSuccess }: ClientFormProps) {
               <Label htmlFor="plan">Plano Contratado *</Label>
               <Select
                 value={formData.plan}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, plan: value }))}
+                onValueChange={(value) => updateField('plan', value)}
                 required
               >
                 <SelectTrigger>
@@ -163,7 +206,7 @@ export function ClientForm({ client, onSuccess }: ClientFormProps) {
               <Select
                 value={formData.status}
                 onValueChange={(value: "Ativo" | "Precisa Renovar" | "Cancelado") =>
-                  setFormData((prev) => ({ ...prev, status: value }))
+                  updateField('status', value)
                 }
               >
                 <SelectTrigger>
@@ -183,7 +226,7 @@ export function ClientForm({ client, onSuccess }: ClientFormProps) {
             <Textarea
               id="notes"
               value={formData.notes}
-              onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
+              onChange={(e) => updateField('notes', e.target.value)}
               placeholder="Adicione observações sobre o cliente (opcional)"
               rows={3}
             />
@@ -202,6 +245,15 @@ export function ClientForm({ client, onSuccess }: ClientFormProps) {
           <div className="flex space-x-4">
             <Button type="submit" className="bg-purple-600 hover:bg-purple-700">
               {client ? "Atualizar Cliente" : "Adicionar Cliente"}
+            </Button>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleSaveDraft}
+              className="flex items-center gap-2"
+            >
+              <Save className="h-4 w-4" />
+              Salvar Rascunho
             </Button>
             <Button type="button" variant="outline" onClick={onSuccess}>
               Cancelar
